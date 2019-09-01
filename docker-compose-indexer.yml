@@ -43,6 +43,8 @@ services:
             - discovery.type=single-node
             - http.port=9200
             - http.cors.enabled=true
+            - http.cors.allow-origin=/https?://.+?(:[0-9]+)?/
+            - http.cors.allow-methods="OPTIONS, HEAD, GET, POST, PUT, DELETE"
             - http.cors.allow-origin=http://localhost:1358,http://127.0.0.1:1358
             - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
             - http.cors.allow-credentials=true
