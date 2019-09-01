@@ -1,0 +1,76 @@
+
+version: '3'
+services:
+    # postgres
+    postgres:
+        image: postgres:9.6-alpine
+        container_name: postgresql
+        environment:
+          POSTGRES_PASSWORD: root
+          POSTGRES_USER: root
+          POSTGRES_DB: test
+        volumes:
+            - /var/lib/postgresql
+            - ./migrations/:/docker-entrypoint-initdb.d/
+        tty: true
+        ports:
+            - 5432:5432/tcp
+        networks:
+            - indexernet
+
+    # logstash
+    logstash: 
+        image: docker.elastic.co/logstash/logstash:7.3.1
+        container_name: logstash
+        volumes: 
+             - ./config/pusher.conf:/usr/share/logstash/config/pusher.conf:ro
+             - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
+             - ./config/jdbc/postgresql-42.2.6.jar:/usr/share/logstash/logstash-core/lib/jars/postgresql-42.2.6.jar:ro
+        ports:
+            - '5044:5044'
+            - '9600:9600'
+        networks:
+            - indexernet
+        command: bash -c "/usr/share/logstash/bin/logstash-plugin install logstash-input-jdbc && logstash -f /usr/share/logstash/config/pusher.conf"
+        depends_on:
+            - elasticsearch
+
+    # search engine
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.0.1
+        container_name: elasticsearch
+        environment:
+            - discovery.type=single-node
+            - http.port=9200
+            - http.cors.enabled=true
+            - http.cors.allow-origin=http://localhost:1358,http://127.0.0.1:1358
+            - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
+            - http.cors.allow-credentials=true
+            - bootstrap.memory_lock=true
+            - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+        ports:
+            - '9200:9200'
+            - '9300:9300'
+        networks:
+            - indexernet
+        depends_on:
+            - postgres
+
+    # elasticsearch browser
+    dejavu:
+        image: appbaseio/dejavu:3.2.3
+        container_name: dejavu
+        ports:
+            - '1358:1358'
+        links:
+            - elasticsearch
+        networks:
+          - indexernet
+        depends_on:
+            - elasticsearch
+volumes:
+  esdata01:
+    driver: local
+networks:
+  indexernet:
+    driver: bridge
